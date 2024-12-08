@@ -1,0 +1,13 @@
+services:
+  easytunnel-client:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: easytunnel-client
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=production
