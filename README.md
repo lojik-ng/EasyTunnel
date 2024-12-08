@@ -60,19 +60,13 @@ cd client
 npm install
 ```
 
-3. Create environment configuration:
-```bash
-cp .env.example .env
-```
-
-4. Edit the `.env` file with your configuration:
+3. Edit the `index.ts` file with your configuration:
 - Set your tunnel server URL
 - Configure your JWT token
 - Set your local service port
 
-5. Build and start the client:
+4. Build and start the client:
 ```bash
-npm run build
 npm start
 ```
 

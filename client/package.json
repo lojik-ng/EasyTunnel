@@ -4,17 +4,11 @@
   "description": "EasyTunnel Client - Connect your localhost service to the internet",
   "main": "dist/index.js",
   "scripts": {
-    "start": "node dist/index.js",
-    "build": "tsc",
-    "dev": "ts-node-dev --respawn src/index.ts",
-    "test": "jest"
+    "start": "tsc && node dist/index.js"
   },
   "dependencies": {
     "axios": "^1.6.2",
-    "dotenv": "^16.3.1",
-    "socket.io-client": "^4.7.2",
-    "winston": "^3.11.0",
-    "winston-daily-rotate-file": "^4.7.1"
+    "socket.io-client": "^4.7.2"
   },
   "devDependencies": {
     "@types/node": "^20.10.4",

@@ -1,11 +1,29 @@
 import { io, Socket } from 'socket.io-client';
 import axios from 'axios';
-import dotenv from 'dotenv';
-import { TunnelRequest, TunnelResponse, TunnelConfig } from './types';
-import logger from './utils/logger';
 
-// Load environment variables
-dotenv.config();
+interface TunnelRequest {
+  method: string;
+  path: string;
+  headers: Record<string, string>;
+  body?: any;
+}
+
+interface TunnelResponse {
+  statusCode: number;
+  headers: Record<string, string>;
+  body: any;
+}
+
+interface TunnelConfig {
+  serverUrl: string;
+  authToken: string;
+  localPort: number;
+  localHost: string;
+  heartbeatInterval: number;
+  requestTimeout: number;
+  reconnectInterval: number;
+}
+
 
 class TunnelClient {
   private socket: Socket | null = null;
@@ -13,18 +31,10 @@ class TunnelClient {
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private reconnectTimeout: NodeJS.Timeout | null = null;
 
-  constructor() {
-    this.config = {
-      serverUrl: process.env.TUNNEL_SERVER_URL || 'http://localhost:3000',
-      authToken: process.env.AUTH_TOKEN || '',
-      localPort: parseInt(process.env.LOCAL_PORT || '3300'),
-      localHost: process.env.LOCAL_HOST || 'localhost',
-      heartbeatInterval: parseInt(process.env.HEARTBEAT_INTERVAL || '30000'),
-      requestTimeout: parseInt(process.env.REQUEST_TIMEOUT || '30000'),
-      reconnectInterval: parseInt(process.env.RECONNECT_INTERVAL || '5000')
-    };
+  constructor(config: TunnelConfig) {
+    this.config = config;
 
-    logger.info('Tunnel client initialized with configuration', {
+    console.log('Tunnel client initialized with configuration', {
       serverUrl: this.config.serverUrl,
       localPort: this.config.localPort,
       localHost: this.config.localHost
@@ -34,9 +44,9 @@ class TunnelClient {
   public async start(): Promise<void> {
     try {
       await this.connect();
-      logger.info('Tunnel client started successfully');
+      console.log('Tunnel client started successfully');
     } catch (error) {
-      logger.error('Failed to start tunnel client', { error });
+      console.error('Failed to start tunnel client', { error });
       process.exit(1);
     }
   }
@@ -46,7 +56,7 @@ class TunnelClient {
       return;
     }
 
-    logger.info('Attempting to connect to tunnel server', {
+    console.log('Attempting to connect to tunnel server', {
       serverUrl: this.config.serverUrl
     });
 
@@ -65,7 +75,7 @@ class TunnelClient {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
-      logger.info('Connected to tunnel server', {
+      console.log('Connected to tunnel server', {
         socketId: this.socket?.id
       });
       if (this.reconnectTimeout) {
@@ -75,7 +85,7 @@ class TunnelClient {
     });
 
     this.socket.on('disconnect', (reason) => {
-      logger.warn('Disconnected from tunnel server', {
+      console.warn('Disconnected from tunnel server', {
         reason,
         socketId: this.socket?.id
       });
@@ -84,25 +94,25 @@ class TunnelClient {
     });
 
     this.socket.on('error', (error) => {
-      logger.error('Socket error', { error });
+      console.error('Socket error', { error });
     });
 
     this.socket.on('tunnel_request', async (request: TunnelRequest, callback: (response: TunnelResponse) => void) => {
-      logger.info('Received tunnel request', {
+      console.log('Received tunnel request', {
         method: request.method,
         path: request.path
       });
 
       try {
         const response = await this.handleTunnelRequest(request);
-        logger.info('Tunnel request handled successfully', {
+        console.log('Tunnel request handled successfully', {
           method: request.method,
           path: request.path,
           statusCode: response.statusCode
         });
         callback(response);
       } catch (error: any) {
-        logger.error('Failed to handle tunnel request', {
+        console.error('Failed to handle tunnel request', {
           method: request.method,
           path: request.path,
           error: error.message
@@ -116,14 +126,14 @@ class TunnelClient {
     });
 
     this.socket.on('heartbeat_ack', () => {
-      logger.debug('Heartbeat acknowledged');
+      console.log('Heartbeat acknowledged');
     });
   }
 
   private async handleTunnelRequest(request: TunnelRequest): Promise<TunnelResponse> {
     const localUrl = `http://${this.config.localHost}:${this.config.localPort}${request.path}`;
-    
-    logger.debug('Forwarding request to local service', {
+
+    console.log('Forwarding request to local service', {
       url: localUrl,
       method: request.method
     });
@@ -138,7 +148,7 @@ class TunnelClient {
         validateStatus: () => true // Don't throw on any status code
       });
 
-      logger.debug('Received response from local service', {
+      console.log('Received response from local service', {
         statusCode: response.status,
         url: localUrl,
         method: request.method
@@ -151,7 +161,7 @@ class TunnelClient {
       };
     } catch (error: any) {
       if (error.code === 'ECONNREFUSED') {
-        logger.error('Local service is not running', {
+        console.error('Local service is not running', {
           url: localUrl,
           port: this.config.localPort
         });
@@ -168,12 +178,12 @@ class TunnelClient {
 
     this.heartbeatInterval = setInterval(() => {
       if (this.socket?.connected) {
-        logger.debug('Sending heartbeat');
+        console.log('Sending heartbeat');
         this.socket.emit('heartbeat');
       }
     }, this.config.heartbeatInterval);
 
-    logger.info('Started heartbeat monitoring', {
+    console.log('Started heartbeat monitoring', {
       interval: this.config.heartbeatInterval
     });
   }
@@ -182,7 +192,7 @@ class TunnelClient {
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
-      logger.info('Stopped heartbeat monitoring');
+      console.log('Stopped heartbeat monitoring');
     }
   }
 
@@ -191,16 +201,16 @@ class TunnelClient {
       clearTimeout(this.reconnectTimeout);
     }
 
-    logger.info('Scheduling reconnection attempt', {
+    console.log('Scheduling reconnection attempt', {
       interval: this.config.reconnectInterval
     });
 
     this.reconnectTimeout = setTimeout(async () => {
-      logger.info('Attempting to reconnect...');
+      console.log('Attempting to reconnect...');
       try {
         await this.connect();
       } catch (error) {
-        logger.error('Reconnection failed', { error });
+        console.error('Reconnection failed', { error });
         this.scheduleReconnect();
       }
     }, this.config.reconnectInterval);
@@ -208,8 +218,17 @@ class TunnelClient {
 }
 
 // Start the tunnel client
-const client = new TunnelClient();
+const client = new TunnelClient({
+  serverUrl: 'https://tunnel.example.com:3000',
+  authToken: 'your-jwt-token',
+  localPort: 3000,
+  localHost: 'localhost',
+  heartbeatInterval: 30000, // check for disconnection every30 seconds
+  requestTimeout: 600000, // 10 minutes
+  reconnectInterval: 5000 // 5 seconds
+});
+
 client.start().catch((error) => {
-  logger.error('Failed to start tunnel client', { error });
+  console.error('Failed to start tunnel client', { error });
   process.exit(1);
 });
